@@ -1,4 +1,9 @@
 # SkyFall
+<div align="center">
+  <img width="313.5" height="313.5" alt="FileFlix Logo" src="https://github.com/user-attachments/assets/80a0df57-cdb0-43a6-a427-5276eafefe67"
+ />
+</div>
+</br>
 
 A smart, cross-platform system monitor that watches CPU, GPU, RAM, disk, network, and
 per-process activity, detects when things look *off for you*, explains *why* with context,
@@ -357,3 +362,6 @@ Settings creates it with the tuned rules intact.
 
 - Consumer packaging: bundled Python runtime, installers (phase 7)
 - History rollups, anomaly tuning UI, privacy docs (phase 8)
+
+## Screenshots
+<img width="1902" height="1135" alt="image" src="https://github.com/user-attachments/assets/ca276651-344f-4082-8d9c-db5ab7c517e8" />
