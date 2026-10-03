@@ -1,0 +1,28 @@
+# Rust / Cargo build output
+target/
+
+# Cargo.lock is deliberately NOT ignored: this project ships binaries, so the
+# exact dependency versions belong in the repo.
+
+# Tauri-generated capability / ACL schemas (regenerated from capabilities/*.json
+# on every build)
+crates/*/gen/schemas/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.env
+
+# Live SQLite database + WAL sidecars (created by `run`, never committed)
+**/*.db
+**/*.db-wal
+**/*.db-shm
+
+# Logs
+*.log
+
+# OS cruft (this is a Win/macOS/Linux project)
+.DS_Store
+Thumbs.db

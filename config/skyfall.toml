@@ -1,0 +1,37 @@
+# SkyFall default configuration.
+# All keys optional; see crates/core/src/config.rs.
+
+# Sampling rate while the system is active vs idle (ms).
+sampling_interval_ms = 3000
+idle_interval_ms = 15000
+# Global CPU% below which the idle interval is used.
+idle_cpu_threshold = 10.0
+
+# Downsample: only persist a snapshot to history at this wall-clock cadence.
+storage_interval_ms = 60000
+# History database location.
+storage_path = "~/.local/share/skyfall/skyfall.db"
+
+# Rank-limited process table stored per snapshot.
+top_processes = 25
+
+per_core_cpu = true
+per_process_io = true
+
+# Echo raw snapshots to stdout as NDJSON (off when running as a service).
+echo_stdout = true
+
+# Desktop popup per alert. Alerts are always recorded and shown in the
+# dashboard; this only controls whether a popup interrupts you.
+desktop_notifications = false
+
+# Python AI sidecar (anomaly detection). Run `python -m skyfall_ai --help` in
+# python/sidecar to see its own knobs; detection config lives in
+# python/sidecar/skyfall_ai.conf.json (or point sidecar_config at your own).
+# Settings writes the narrator settings (on/off, endpoint, model, API key) to
+# sidecar_config, defaulting to ~/.config/skyfall/skyfall_ai.json.
+[ai]
+enabled = true
+command = "python3"
+module = "skyfall_ai"
+# sidecar_config = "~/.config/skyfall/skyfall_ai.json"

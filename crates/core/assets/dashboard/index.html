@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SkyFall</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="style.css">
+
+</head>
+<body>
+<header>
+  <div class="brand">
+    <img class="logo" src="logo.png" srcset="logo@2x.png 2x" width="26" height="26" alt="">
+    <span>SkyFall</span>
+    <span class="ver" id="version">v0.1.0</span>
+  </div>
+  <div class="status" id="status">
+    <span class="dot off"></span><span id="statusText">connecting</span>
+  </div>
+  <button class="ai-badge" id="aiBadge" title="AI explanations" aria-label="AI explanations status">
+    <span class="dot off" id="aiBadgeDot"></span><span id="aiBadgeText">AI &hellip;</span>
+  </button>
+  <button class="gear" id="gearBtn" title="Settings" aria-label="Settings">&#9881;</button>
+</header>
+
+<div class="layout">
+  <div class="content">
+    <section class="cards">
+    <div class="card" id="card-cpu">
+      <div class="card-head">
+        <span class="card-title">CPU</span>
+        <span class="card-value" id="cpuValue">&ndash;%</span>
+      </div>
+      <canvas class="chart" id="cpuChart"></canvas>
+      <div class="card-foot" id="cpuFoot">load &ndash;</div>
+    </div>
+
+    <div class="card" id="card-ram">
+      <div class="card-head">
+        <span class="card-title">Memory</span>
+        <span class="card-value" id="ramValue">&ndash;%</span>
+      </div>
+      <canvas class="chart" id="ramChart"></canvas>
+      <div class="card-foot" id="ramFoot">&ndash; / &ndash;</div>
+    </div>
+
+    <div class="card" id="card-net">
+      <div class="card-head">
+        <span class="card-title">Network</span>
+        <span class="card-value" id="netValue">&ndash;</span>
+      </div>
+      <canvas class="chart" id="netChart"></canvas>
+      <div class="card-foot" id="netFoot">rx &ndash; &middot; tx &ndash;</div>
+    </div>
+
+    <div id="gpu-cards"></div>
+  </section>
+
+  <section class="cards">
+    <div class="card" id="card-disks">
+      <div class="card-head"><span class="card-title">Disks</span></div>
+      <div id="diskList"></div>
+    </div>
+
+    <div class="card" id="card-temps">
+      <div class="card-head"><span class="card-title">Temperatures</span></div>
+      <div id="tempList" class="chips"></div>
+    </div>
+  </section>
+
+  <section class="card table-card">
+    <div class="card-head">
+      <span class="card-title">Processes</span>
+      <span class="card-sub" id="procCount"></span>
+    </div>
+    <div class="table-wrap">
+      <table id="procTable">
+        <thead>
+          <tr>
+            <th data-key="pid" class="num">PID</th>
+            <th data-key="name">Name</th>
+            <th data-key="cpu" class="num sortable sort-desc">CPU%</th>
+            <th data-key="ram_kb" class="num sortable">RAM</th>
+            <th data-key="disk_read_bps" class="num sortable">Read/s</th>
+            <th data-key="disk_write_bps" class="num sortable">Write/s</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+    <footer>SkyFall &middot; the AI system monitor</footer>
+  </div>
+
+  <aside class="sidebar">
+    <section class="card feed-card">
+      <div class="card-head">
+        <span class="card-title">Alerts</span>
+        <span class="card-sub" id="feedCount"></span>
+      </div>
+      <div class="feed-bar">
+        <button type="button" class="btn small ghost" id="feedPause" aria-pressed="false">Pause</button>
+        <span class="feed-hint" id="feedHint">new alerts are still recorded</span>
+      </div>
+      <div id="feedList"></div>
+    </section>
+  </aside>
+</div>
+
+<!-- settings modal -->
+<div class="modal-backdrop" id="settingsBackdrop" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="modal-head">
+      <span class="modal-title" id="settingsTitle">Settings</span>
+      <button class="modal-close" id="settingsClose" aria-label="Close">&times;</button>
+    </div>
+    <form id="settingsForm" autocomplete="off">
+      <p class="modal-intro">
+        SkyFall samples your machine continuously and asks a local AI model to explain
+        unusual activity. Nothing leaves this computer unless you point the AI at a
+        cloud provider yourself.
+      </p>
+
+      <fieldset>
+        <legend>How often to check</legend>
+        <p class="legend-hint">Lower values catch short spikes but use more battery.</p>
+        <label class="field">
+          <span>Active sample rate <em class="unit">milliseconds</em></span>
+          <input type="number" name="sampling_interval_ms" min="200" step="100" required>
+          <small>How often to take a reading while your computer is busy.
+            1000&ndash;2000 ms is a good balance; 200 ms is very fine-grained.</small>
+        </label>
+        <label class="field">
+          <span>Idle sample rate <em class="unit">milliseconds</em></span>
+          <input type="number" name="idle_interval_ms" min="1000" step="500" required>
+          <small>Used when the machine is mostly idle, to save battery and heat.
+            5000 ms or higher is typical.</small>
+        </label>
+        <label class="field">
+          <span>Consider &ldquo;idle&rdquo; below <em class="unit">% CPU</em></span>
+          <input type="number" name="idle_cpu_threshold" min="0" max="100" step="1" required>
+          <small>If CPU stays under this, SkyFall drops to the slower idle rate.</small>
+        </label>
+        <label class="field">
+          <span>Write to history every <em class="unit">milliseconds</em></span>
+          <input type="number" name="storage_interval_ms" min="500" step="250" required>
+          <small>Sampling can be fast while the history database is written more
+            slowly, which keeps charts smooth and the file small.</small>
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>What to record</legend>
+        <label class="field">
+          <span>Processes to keep per snapshot</span>
+          <input type="number" name="top_processes" min="3" max="200" step="1" required>
+          <small>How many of the busiest processes to store each time. More means
+            better &ldquo;which app did this&rdquo; answers, at the cost of a
+            larger database.</small>
+        </label>
+        <label class="check">
+          <input type="checkbox" name="per_core_cpu">
+          <span>Per-core CPU</span>
+          <small>Adds a reading for every CPU core, not just the average.</small>
+        </label>
+        <label class="check">
+          <input type="checkbox" name="per_process_io">
+          <span>Per-process disk &amp; network I/O</span>
+          <small>Measures read/write and network rates per process. This is what
+            usually identifies a runaway download or build.</small>
+        </label>
+        <label class="check">
+          <input type="checkbox" name="echo_stdout">
+          <span>Print every snapshot to the terminal</span>
+          <small>Debugging only &mdash; very noisy. Leave off unless you are
+            troubleshooting.</small>
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Alerts</legend>
+        <label class="check">
+          <input type="checkbox" name="desktop_notifications">
+          <span>Pop up notifications</span>
+          <small>Shows a desktop popup when something unusual happens, even when
+            SkyFall is in the tray. Off by default &mdash; alerts are recorded and
+            listed either way, popups just interrupt whatever you are doing.</small>
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>AI explanations</legend>
+        <p class="legend-hint">
+          SkyFall runs a small language model on your machine to turn a spike in
+          numbers into a sentence about what caused it.
+        </p>
+        <label class="field">
+          <span>AI explanations</span>
+          <select name="ai_enabled">
+            <option value="true">On</option>
+            <option value="false">Off</option>
+          </select>
+          <small>When off, you still get alerts &mdash; just without the written
+            explanation and root cause.</small>
+        </label>
+
+        <div class="model-box">
+          <div class="model-row">
+            <span class="model-state" id="aiModelState">Checking&hellip;</span>
+            <button type="button" class="btn small" id="aiInstallBtn" hidden>Install</button>
+          </div>
+          <div class="progress" id="aiProgressWrap" hidden>
+            <div class="progress-bar"><div class="progress-fill" id="aiProgressFill"></div></div>
+            <span class="progress-text" id="aiProgressText">Starting&hellip;</span>
+            <button type="button" class="btn small ghost" id="aiCancelBtn">Cancel</button>
+          </div>
+          <button type="button" class="linkish" id="aiRefreshBtn">Check again</button>
+        </div>
+
+        <label class="field">
+          <span>Model</span>
+          <input type="text" name="ai_model" placeholder="qwen2.5:3b" list="modelChoices" spellcheck="false">
+          <datalist id="modelChoices">
+            <option value="qwen2.5:3b">qwen2.5:3b &mdash; ~1.9 GB, recommended</option>
+            <option value="qwen2.5:1.5b">qwen2.5:1.5b &mdash; ~1.0 GB, fastest</option>
+            <option value="qwen2.5:7b">qwen2.5:7b &mdash; ~4.7 GB, needs a decent GPU</option>
+          </datalist>
+          <div class="chips" role="group" aria-label="Model presets">
+            <button type="button" class="chip" data-model="qwen2.5:1.5b">Fast &middot; 1.5b</button>
+            <button type="button" class="chip" data-model="qwen2.5:3b">Balanced &middot; 3b</button>
+            <button type="button" class="chip" data-model="qwen2.5:7b">Large &middot; 7b</button>
+          </div>
+          <small>Bigger models write better explanations but need more memory and
+            time. On a laptop with no dedicated graphics card, stay at 3b or lower.
+            <b>Fast</b> is roughly half the memory and noticeably quicker per
+            verdict; <code>shell/bench_narration.sh</code> measures the three on
+            your own machine.</small>
+        </label>
+        <label class="field">
+          <span>AI service address</span>
+          <input type="text" name="ai_base_url" placeholder="http://127.0.0.1:11434" spellcheck="false">
+          <small>Where the model runs. The default is Ollama on this computer.
+            To use a cloud AI service instead, paste its address here.</small>
+        </label>
+        <label class="field">
+          <span>API key <em class="unit">cloud services only</em></span>
+          <input type="password" name="ai_api_key" placeholder="(not needed for local models)">
+          <small>Leave empty for local models. Only required if you entered a
+            cloud address above.</small>
+        </label>
+      </fieldset>
+
+      <div class="modal-msg" id="settingsMsg"></div>
+      <div class="modal-actions">
+        <span class="autostart" id="autostartWrap" hidden>
+          <label class="check">
+            <input type="checkbox" id="autostartChk">
+            <span>Launch at login</span>
+          </label>
+        </span>
+        <button type="button" class="btn" id="settingsCancel">Cancel</button>
+        <button type="submit" class="btn primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

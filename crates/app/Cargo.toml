@@ -1,0 +1,30 @@
+[package]
+name = "skyfall-app"
+description = "SkyFall desktop shell: tray, window, notifications, autostart (Tauri 2)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "skyfall_app"
+path = "src/lib.rs"
+
+[[bin]]
+name = "skyfall-desktop"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build.workspace = true
+
+[dependencies]
+skyfall-core = { path = "../core" }
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+futures-util.workspace = true
+tokio.workspace = true
+tauri.workspace = true
+tauri-plugin-autostart.workspace = true
+tauri-plugin-notification.workspace = true
+log.workspace = true
+env_logger.workspace = true
