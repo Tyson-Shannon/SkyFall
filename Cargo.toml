@@ -12,7 +12,10 @@ anyhow = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sysinfo = "0.39"
-rusqlite = "0.32"
+# `bundled` compiles SQLite from source via libsqlite3-sys instead of looking for
+# a system sqlite3 library. Windows runners (and clean Linux hosts) do not ship
+# sqlite3.lib/sqlite3.pc, so without this the MSVC linker fails with LNK1181.
+rusqlite = { version = "0.32", features = ["bundled"] }
 toml = "0.8"
 nvml-wrapper = "0.13"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "signal", "sync"] }
