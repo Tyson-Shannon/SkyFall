@@ -363,7 +363,35 @@ fn parse_config_path() -> Option<std::path::PathBuf> {
     None
 }
 
+/// Point the core at the frozen sidecar shipped with the installed app.
+///
+/// Tauri places `bundle.externalBin` entries next to the main executable, so
+/// this covers the NSIS install, the .deb and the AppImage without any
+/// install-path configuration. In dev builds (no sidecar next to the exe) the
+/// core keeps using `python3 -m skyfall_ai` from the repo.
+fn configure_bundled_sidecar() {
+    if std::env::var_os("SKYFALL_AI_EXECUTABLE").is_some() {
+        return; // explicit override wins
+    }
+    let file = if cfg!(windows) {
+        "skyfall-ai.exe"
+    } else {
+        "skyfall-ai"
+    };
+    let Ok(exe) = std::env::current_exe() else {
+        return;
+    };
+    let Some(dir) = exe.parent() else {
+        return;
+    };
+    let candidate = dir.join(file);
+    if candidate.is_file() {
+        std::env::set_var("SKYFALL_AI_EXECUTABLE", candidate);
+    }
+}
+
 pub fn run() -> Result<()> {
+    configure_bundled_sidecar();
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
 
     let cfg_path = parse_config_path();

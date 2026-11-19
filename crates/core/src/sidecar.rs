@@ -18,6 +18,11 @@ use crate::config::Config;
 use crate::metrics::Snapshot;
 use crate::storage::expand_tilde;
 
+/// Env var the desktop shell sets when it finds the self-contained sidecar
+/// bundled next to the installed binary (Tauri `externalBin`). When set, the
+/// child is launched directly instead of via `python -m skyfall_ai`.
+const BUNDLED_EXECUTABLE_ENV: &str = "SKYFALL_AI_EXECUTABLE";
+
 /// Expand a config path for handing to the sidecar child (handles `~`).
 fn expand_tilde_for_child(path: &std::path::Path) -> PathBuf {
     expand_tilde(path)
@@ -98,11 +103,7 @@ impl Sidecar {
         }
         match spawn(cfg) {
             Ok(sc) => {
-                log::info!(
-                    "ai sidecar spawned ({} -m {})",
-                    cfg.ai.command,
-                    cfg.ai.module
-                );
+                log::info!("ai sidecar spawned");
                 sc
             }
             Err(e) => {
@@ -249,11 +250,33 @@ fn sidecar_python_path() -> PathBuf {
         .join("python/sidecar")
 }
 
+/// A frozen sidecar bundled with the app, if the shell pointed us at one.
+fn bundled_executable() -> Option<PathBuf> {
+    let raw = std::env::var_os(BUNDLED_EXECUTABLE_ENV)?;
+    let path = PathBuf::from(raw);
+    path.is_file().then_some(path)
+}
+
+/// Spawn based on `cfg.ai`, preferring the bundled frozen sidecar when present.
 fn spawn(cfg: &Config) -> Result<Sidecar> {
+    if let Some(exe) = bundled_executable() {
+        log::info!("using bundled sidecar at {}", exe.display());
+        let mut cmd = Command::new(&exe);
+        cmd.arg("--config").arg(cfg.ai.config_path());
+        let db = expand_tilde_for_child(&cfg.storage_path);
+        cmd.arg("--db").arg(db);
+        return launch(cmd);
+    }
+
     let py_path = sidecar_python_path();
 
     let mut cmd = Command::new(&cfg.ai.command);
     cmd.arg("-m").arg(&cfg.ai.module);
+    log::info!(
+        "using python sidecar ({} -m {})",
+        cfg.ai.command,
+        cfg.ai.module
+    );
     // Always tell the child where its config lives, even when the user never set
     // `sidecar_config`: Settings writes the narrator on/off + model there, so
     // leaving the flag off made those settings unsaveable in practice. The
@@ -270,13 +293,19 @@ fn spawn(cfg: &Config) -> Result<Sidecar> {
     }
     let py_path_env = std::env::join_paths(dirs).expect("joining PYTHONPATH");
     cmd.env("PYTHONPATH", py_path_env);
+    launch(cmd)
+}
+
+/// Start `cmd` with piped NDJSON stdio and drain its stdout on a reader thread.
+fn launch(mut cmd: Command) -> Result<Sidecar> {
+    let program = cmd.get_program().to_string_lossy().into_owned();
     cmd.stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit());
 
     let mut child = cmd
         .spawn()
-        .map_err(|e| anyhow::anyhow!("spawning {} -m {}: {e}", cfg.ai.command, cfg.ai.module))?;
+        .map_err(|e| anyhow::anyhow!("spawning {program}: {e}"))?;
     let stdin = child.stdin.take().expect("piped stdin");
     let stdout = child.stdout.take().expect("piped stdout");
 
